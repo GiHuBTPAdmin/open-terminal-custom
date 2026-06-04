@@ -10,11 +10,14 @@ RUN rm -f /etc/skel/.bashrc \
            /etc/skel/.config \
            /etc/skel/.local
 
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'find /home -maxdepth 2 \( -name ".bashrc" -o -name ".profile" -o -name ".bash_logout" -o -name ".bash_profile" -o -name ".cache" -o -name ".config" -o -name ".local" \) -delete 2>/dev/null' >> /app/start.sh && \
-    echo 'exec /app/entrypoint.sh run' >> /app/start.sh && \
-    chmod +x /app/start.sh
+RUN find /home -maxdepth 2 \( \
+    -name ".bashrc" -o \
+    -name ".profile" -o \
+    -name ".bash_logout" -o \
+    -name ".bash_profile" -o \
+    -name ".cache" -o \
+    -name ".config" -o \
+    -name ".local" \
+    \) -delete 2>/dev/null || true
 
 USER user
-
-CMD ["/app/start.sh"]
