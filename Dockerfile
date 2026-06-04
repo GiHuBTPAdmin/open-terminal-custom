@@ -3,6 +3,7 @@ FROM ghcr.io/open-webui/open-terminal:latest
 USER root
 
 RUN rm -f /etc/skel/.bashrc \
+          /etc/skel/.bash_history \
           /etc/skel/.profile \
           /etc/skel/.bash_logout \
           /etc/skel/.bash_profile && \
