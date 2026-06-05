@@ -2,6 +2,16 @@ FROM ghcr.io/open-webui/open-terminal:latest
 
 USER root
 
+# cache-bust: 2026-06-05
+RUN rm -f /etc/skel/.bashrc \
+          /etc/skel/.profile \
+          /etc/skel/.bash_logout \
+          /etc/skel/.bash_profile \
+          /etc/skel/.bash_history && \
+    rm -rf /etc/skel/.cache \
+           /etc/skel/.config \
+           /etc/skel/.local
+
 # 1. Dotfiles aus /etc/skel/ entfernen
 RUN rm -f /etc/skel/.bashrc \
           /etc/skel/.profile \
