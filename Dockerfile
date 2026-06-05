@@ -2,7 +2,7 @@ FROM ghcr.io/open-webui/open-terminal:latest
 
 USER root
 
-# /etc/skel/ bereinigen — wird beim Anlegen neuer User-Homes kopiert
+# Dotfiles aus /etc/skel/ entfernen
 RUN rm -f /etc/skel/.bashrc \
           /etc/skel/.profile \
           /etc/skel/.bash_logout \
@@ -12,7 +12,7 @@ RUN rm -f /etc/skel/.bashrc \
            /etc/skel/.config \
            /etc/skel/.local
 
-# Bestehende Dotfiles in /home bereinigen (Image-Layer, nicht Volume)
+# Bestehende Dotfiles in /home bereinigen
 RUN find /home -maxdepth 2 \( \
     -name ".bashrc" -o \
     -name ".profile" -o \
@@ -24,9 +24,18 @@ RUN find /home -maxdepth 2 \( \
     -name ".local" \
     \) -delete 2>/dev/null || true
 
-# .bash_history unterdrücken — Shell-History dauerhaft deaktivieren
+# Shell-History dauerhaft deaktivieren
 RUN echo 'HISTFILE=/dev/null' >> /etc/bash.bashrc && \
-    echo 'HISTSIZE=0' >> /etc/bash.bashrc && \
-    echo 'unset HISTFILE' >> /etc/bash.bashrc
+    echo 'HISTSIZE=0'         >> /etc/bash.bashrc && \
+    echo 'unset HISTFILE'     >> /etc/bash.bashrc
+
+# ✅ NEU: Cache-Verzeichnisse nach /tmp umleiten
+# → matplotlib und fontconfig schreiben nie mehr in ~/.cache/
+RUN echo 'export MPLCONFIGDIR=/tmp/mpl_cache'    >> /etc/bash.bashrc && \
+    echo 'export XDG_CACHE_HOME=/tmp/xdg_cache'  >> /etc/bash.bashrc
+
+# Diese ENV-Variablen gelten auch für Python-Skripte (nicht nur Shell)
+ENV MPLCONFIGDIR=/tmp/mpl_cache
+ENV XDG_CACHE_HOME=/tmp/xdg_cache
 
 USER user
