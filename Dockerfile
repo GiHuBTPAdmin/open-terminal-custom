@@ -48,3 +48,6 @@ RUN mkdir -p /home/user/workspace && \
     chown -R user:user /home/user/workspace
 
 USER user
+
+# 7. Standard-Arbeitsordner setzen
+WORKDIR /home/user/workspace
