@@ -3,6 +3,7 @@ FROM ghcr.io/open-webui/open-terminal:latest
 USER root
 
 # cache-bust: 2026-06-05
+
 # 1. Dotfiles aus /etc/skel/ entfernen
 RUN rm -f /etc/skel/.bashrc \
           /etc/skel/.profile \
@@ -23,7 +24,7 @@ RUN find /home -maxdepth 2 \( \
     -name ".cache"        -o \
     -name ".config"       -o \
     -name ".local" \
-    \) -delete 2>/dev/null || true
+    \) -exec rm -rf {} + 2>/dev/null || true
 
 # 3. Shell-History für alle User dauerhaft deaktivieren
 RUN echo 'HISTFILE=/dev/null'  >> /etc/bash.bashrc && \
@@ -31,7 +32,7 @@ RUN echo 'HISTFILE=/dev/null'  >> /etc/bash.bashrc && \
     echo 'unset HISTFILE'      >> /etc/bash.bashrc
 
 # 4. matplotlib + fontconfig Cache nach /tmp umleiten
-#    → ~/.cache wird nie mehr erstellt
+#    → ~/.cache wird nicht mehr erstellt
 RUN echo 'export MPLCONFIGDIR=/tmp/mpl_cache'   >> /etc/bash.bashrc && \
     echo 'export XDG_CACHE_HOME=/tmp/xdg_cache' >> /etc/bash.bashrc
 
@@ -42,7 +43,8 @@ ENV XDG_CACHE_HOME=/tmp/xdg_cache
 ENV PIP_ROOT_USER_ACTION=ignore
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 6. pip auf aktuelle Version aktualisieren
-RUN pip install --upgrade pip --quiet
+# 6. Arbeitsordner für Datei-Erstellung vorbereiten
+RUN mkdir -p /home/user/workspace && \
+    chown -R user:user /home/user/workspace
 
 USER user
