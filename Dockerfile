@@ -2,7 +2,7 @@ FROM ghcr.io/open-webui/open-terminal:latest
 
 USER root
 
-# cache-bust: 2026-06-05
+# cache-bust: 2026-06-10
 
 # 1. Dotfiles aus /etc/skel/ entfernen
 RUN rm -f /etc/skel/.bashrc \
@@ -14,28 +14,16 @@ RUN rm -f /etc/skel/.bashrc \
            /etc/skel/.config \
            /etc/skel/.local
 
-# 2. Bestehende Dotfiles in /home bereinigen (Image-Layer)
-RUN find /home -maxdepth 2 \( \
-    -name ".bashrc"       -o \
-    -name ".profile"      -o \
-    -name ".bash_logout"  -o \
-    -name ".bash_profile" -o \
-    -name ".bash_history" -o \
-    -name ".cache"        -o \
-    -name ".config"       -o \
-    -name ".local" \
-    \) -exec rm -rf {} + 2>/dev/null || true
-
-# 3. Shell-History für alle User dauerhaft deaktivieren
+# 2. Shell-History für alle User dauerhaft deaktivieren
 RUN echo 'HISTFILE=/dev/null'  >> /etc/bash.bashrc && \
     echo 'HISTSIZE=0'          >> /etc/bash.bashrc && \
     echo 'unset HISTFILE'      >> /etc/bash.bashrc
 
-# 4. matplotlib + fontconfig Cache nach /tmp umleiten
-#    → ~/.cache wird nicht mehr erstellt
-RUN echo 'export MPLCONFIGDIR=/tmp/mpl_cache'   >> /etc/bash.bashrc && \
-    echo 'export XDG_CACHE_HOME=/tmp/xdg_cache' >> /etc/bash.bashrc
+# 3. Workspace-Ordner automatisch erstellen + Cleanup bei jeder Session
+RUN echo 'mkdir -p ~/workspace 2>/dev/null || true'        >> /etc/bash.bashrc && \
+    echo 'workspace-cleanup.sh 2>/dev/null || true'        >> /etc/bash.bashrc
 
+# 4. matplotlib + fontconfig Cache nach /tmp umleiten
 ENV MPLCONFIGDIR=/tmp/mpl_cache
 ENV XDG_CACHE_HOME=/tmp/xdg_cache
 
@@ -43,11 +31,63 @@ ENV XDG_CACHE_HOME=/tmp/xdg_cache
 ENV PIP_ROOT_USER_ACTION=ignore
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 6. Arbeitsordner für Datei-Erstellung vorbereiten
-RUN mkdir -p /home/user/workspace && \
-    chown -R user:user /home/user/workspace
+# 6. Cleanup-Script
+RUN cat > /usr/local/bin/workspace-cleanup.sh <<'EOF'
+#!/bin/sh
+set -eu
+BASE_DIR="${CLEANUP_BASE_DIR:-/home}"
+RETENTION_DAYS="${CLEANUP_RETENTION_DAYS:-7}"
+echo "[cleanup] started: base=$BASE_DIR retention=${RETENTION_DAYS}d"
+
+# A) Temporäre und Script-Dateien immer löschen
+find "$BASE_DIR" -mindepth 2 -type f \( \
+  -name "*.py"   -o \
+  -name "*.pyc"  -o \
+  -name "*.pyo"  -o \
+  -name "*.tmp"  -o \
+  -name "*.temp" -o \
+  -name "*.log"  -o \
+  -name "*.bak"  -o \
+  -name "*.swp"  -o \
+  -name "*.swo"  -o \
+  -name ".DS_Store" \
+\) -delete 2>/dev/null || true
+
+# B) Temporäre Cache-Ordner immer löschen
+find "$BASE_DIR" -mindepth 2 -type d \( \
+  -name "__pycache__"        -o \
+  -name ".pytest_cache"      -o \
+  -name ".mypy_cache"        -o \
+  -name ".ruff_cache"        -o \
+  -name ".cache"             -o \
+  -name ".ipynb_checkpoints" -o \
+  -name ".tmp"               -o \
+  -name ".temp" \
+\) -exec rm -rf {} + 2>/dev/null || true
+
+# C) Alte Dateien > RETENTION_DAYS löschen
+#    Geschützt: Office, PDF, Text, Archiv, Bilder
+find "$BASE_DIR" -mindepth 2 -mtime +"$RETENTION_DAYS" \
+  ! \( \
+    -iname "*.doc"  -o -iname "*.docx" -o -iname "*.dot"  -o -iname "*.dotx" -o \
+    -iname "*.xls"  -o -iname "*.xlsx" -o -iname "*.xlsm" -o -iname "*.csv"  -o -iname "*.tsv" -o \
+    -iname "*.ppt"  -o -iname "*.pptx" -o -iname "*.pps"  -o -iname "*.ppsx" -o \
+    -iname "*.pdf"  -o \
+    -iname "*.txt"  -o -iname "*.rtf"  -o -iname "*.md"   -o \
+    -iname "*.odt"  -o -iname "*.ods"  -o -iname "*.odp"  -o \
+    -iname "*.zip"  -o -iname "*.7z"   -o -iname "*.rar"  -o \
+    -iname "*.png"  -o -iname "*.jpg"  -o -iname "*.jpeg" -o \
+    -iname "*.gif"  -o -iname "*.webp" -o -iname "*.svg" \
+  \) \
+  -delete 2>/dev/null || true
+
+# D) Leere Ordner bereinigen
+find "$BASE_DIR" -mindepth 2 -type d -empty \
+  -delete 2>/dev/null || true
+
+echo "[cleanup] finished"
+EOF
+
+RUN chmod +x /usr/local/bin/workspace-cleanup.sh
 
 USER user
-
-# 7. Standard-Arbeitsordner setzen
-WORKDIR /home/user/workspace
