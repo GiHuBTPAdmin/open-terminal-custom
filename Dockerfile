@@ -36,7 +36,7 @@ RUN cat > /usr/local/bin/workspace-cleanup.sh <<'EOF'
 #!/bin/sh
 set -eu
 BASE_DIR="${CLEANUP_BASE_DIR:-/home}"
-RETENTION_DAYS="${CLEANUP_RETENTION_DAYS:-7}"
+RETENTION_DAYS="${CLEANUP_RETENTION_DAYS:-3}"
 echo "[cleanup] started: base=$BASE_DIR retention=${RETENTION_DAYS}d"
 
 # A) Temporäre und Script-Dateien immer löschen
